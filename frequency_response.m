@@ -162,4 +162,77 @@ xaxisproperties= get(gca, 'XAxis');
 xaxisproperties.TickLabelInterpreter = 'latex'; % latex for x-axis
 yaxisproperties= get(gca, 'YAxis');
 yaxisproperties.TickLabelInterpreter = 'latex'; % latex for y-axis
+%% Time simatulion
+t = 0:0.1:1000;
+Om = linspace(0.85,1.15,1000);
+
+for i=1:length(Om)
+    x0_real= 0;
+    
+    x0 = [0 0];
+    x0_dot = [0 0];
+    
+    f1 = @(t,y)[y(3);y(4);...
+        -(y(1) + 2*zeta_i*y(3) + k_i*r_i*y(2) - Fex1(1)*cos(Om(i)*t));...
+        -( r_i^2*y(2) + 2*zeta_e*r_i*y(4) + k_i*r_i*y(1)+r_i*(k_i*y(1)+r_i*y(2))^3);
+        ];
+    
+    Prec = 1e-8;
+    % Actual numerical simulation
+    
+    options = odeset('RelTol',Prec,'AbsTol',[Prec Prec Prec Prec]);
+    [T1,Y1] = ode45(f1,t,[x0 x0_dot],options);
+    V = (k_i*Y1(:,1) + r_i*Y1(:,2))*r_i;
+   
+    A_main(i)=rms(Y1(round(3*length(Y1)/4):round(7*length(Y1)/8),1));
+    
+    %filter
+    Y1filt = Y1;%lowpass(Y1, 1.2*Om(i)/(2*pi),10,'ImpulseResponse','iir','Steepness',0.9999999);
+    
+    A_main_filt(i)=rms(Y1filt(round(3*length(Y1)/4):round(7*length(Y1filt)/8),1));
+    C_main(i)=rms(V(round(3*length(Y1)/4):end));
+     
+    
+          envY  = envelope( Y1filt(:,1),50,'peaks'); %sqrt(Y1(:,1).^2+Y1(:,3).^2);
+
+    TF = islocalmin(envY,'MinSeparation',100,'SamplePoints',T1);
+    if(length(TF)>0 & sum(TF) > 0)
+            envY_min = envY(TF);
+     A_main_min(i)= min(envY_min(round(3*length(envY_min)/4):round(7*length(envY_min)/8)));
+     if(A_main_min(i)/ A_main(i) > 0.9)
+         A_main_min(i)=NaN;
+     end
+                   % A_main_min(i)=min(envY(round(3*length(Y1)/4):end));
+                A_main_max(i)=max(envY(round(3*length(Y1)/4):round(7*length(Y1)/8)));
+                
+                 if(A_main_max(i)/( A_main_filt(i) *sqrt(2)) < 1.1)
+         A_main_max(i)=NaN;
+                 end
+     
+    else
+     A_main_min(i)= NaN;
+                   % A_main_min(i)=min(envY(round(3*length(Y1)/4):end));
+                A_main_max(i)= NaN;
+    end
+    
+     i
+end
+
+figure(1)
+
+plot(Om,A_main_filt*sqrt(2),'-o','LineStyle', 'none');
+ hold on
+plot(Om,A_main_min,'-o','LineStyle', 'none' )
+ hold on
+plot(Om,A_main_max,'-o','LineStyle', 'none' )
+
+   ax = gca; 
+
+ax.FontSize = 15; 
+ylabel('a','FontSize',16.5,'interpreter','latex') 
+xlabel('$f[Hz]$','FontSize',16.5,'interpreter','latex') 
+xaxisproperties= get(gca, 'XAxis');
+xaxisproperties.TickLabelInterpreter = 'latex'; % latex for x-axis
+yaxisproperties= get(gca, 'YAxis');
+yaxisproperties.TickLabelInterpreter = 'latex'; % latex for y-axis
 
